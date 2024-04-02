@@ -1,4 +1,4 @@
-function Y = maxcut_manopt_incremental(A)
+function [Y, info, totaliter] = maxcut_manopt_incremental(A, tolgradnorm, tolreldualitygap)
 % Simplistic incremental rank strategy for maxcut_manopt.
 % Nicolas Boumal, June 10, 2016.
 
@@ -10,8 +10,10 @@ function Y = maxcut_manopt_incremental(A)
     p_steps = 5;
     pp = round(linspace(p_min, p_max, p_steps));
     Y0 = [];
+    totaliter = 0;
     for k = 1 : length(pp)
-        Y = maxcut_manopt(A, pp(k), Y0);
+        [Y, ~, info] = maxcut_manopt(A, pp(k), Y0, tolgradnorm, tolreldualitygap);
+        totaliter = totaliter + info(end).iter;
         if k < length(pp)
             jmp = 1e-5; % arbitrary parameter value...
             Y0 = [Y jmp*randn(n, pp(k+1)-pp(k))];
