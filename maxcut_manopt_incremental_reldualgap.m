@@ -1,4 +1,4 @@
-function [Y, info, totaliter] = maxcut_manopt_incremental(A, tolgradnorm, tolreldualitygap)
+function [Y, info, totaliter] = maxcut_manopt_incremental_reldualgap(A, tolgradnorm, tolreldualitygap)
 % Simplistic incremental rank strategy for maxcut_manopt.
 % Nicolas Boumal, June 10, 2016.
 

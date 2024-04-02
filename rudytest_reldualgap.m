@@ -1,4 +1,4 @@
-function rudytest()
+function rudytest_reldualgap()
     
     % Store the results in "record": a 3-way array
     % where the idendxing goes:

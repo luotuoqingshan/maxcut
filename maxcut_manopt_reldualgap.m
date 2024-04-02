@@ -1,4 +1,4 @@
-function [Y, problem, info] = maxcut_manopt(A, p, Y0, tolgradnorm, tolreldualgap)
+function [Y, problem, info] = maxcut_manopt_reldualgap(A, p, Y0, tolgradnorm, tolreldualgap)
 
     n = size(A, 1);
     L = spdiags(sum(A, 2), 0, n, n) - A;
