@@ -5,6 +5,7 @@ function test_maxcut(varargin)
     addOptional(p, 'tol', 0.01, @isnumeric);
     addOptional(p, 'graph', 'G1', @ischar);
     addOptional(p, 'solver', 'manopt', @ischar);
+    addOptional(p, 'R', 0, @isnumeric);
     % Store the results in "record": a 3-way array
     % where the idendxing goes:
     %   graph id ; performance metric ; algorithm
@@ -13,6 +14,7 @@ function test_maxcut(varargin)
     tol = p.Results.tol;
     graphname = p.Results.graph;
     solver = p.Results.solver;
+    R = p.Results.R;
 
     rng(seed,'twister');
 
@@ -27,16 +29,17 @@ function test_maxcut(varargin)
 
     % Laplacian of the graph
     L = spdiags(sum(A, 2), 0, n, n) - A;
-    record = zeros(4);
+    record = zeros(5, 1);
     
     % Call the solver on the graph
     if convertCharsToStrings(solver) == "manopt"
-        [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_exp_decay(A, tol, 100.0, 10.0);
+        [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_exp_decay(A, R, tol, 10.0, 5.0);
         solver_name = 'Manopt         ';
-    else
-        [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_incremental_exp_decay(A, tol, 100.0, 10.0);
-        solver_name = 'Manopt incr.   ';
     end
+    %else
+    %    [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_incremental_exp_decay(A, tol, 10.0, 5.0);
+    %    solver_name = 'Manopt incr.   ';
+    %end
     fprintf('Number of iterations taken: %d\n', iter);
 
     [approx_min_eigval, obj, rel_duality_gap] = postprocessing(L, A, Y);
@@ -51,8 +54,8 @@ function test_maxcut(varargin)
         end
     end
 
-    fprintf('\tSolver: %s\t Approx Min Eigval:%8g \t time: %8g, obj: %8g\t cut: %8g\t relative duality gap: %8g\n', ...
-            solver_name, approx_min_eigval, time, obj, best_cut, rel_duality_gap);
+    fprintf('\tSolver: %s\t R: %8g \tApprox Min Eigval:%8g \t time: %8g, obj: %8g\t cut: %8g\t relative duality gap: %8g\n', ...
+            solver_name, R, approx_min_eigval, time, obj, best_cut, rel_duality_gap);
 
     record(1) = sum(sum((L*Y).*Y))/4; % 
     record(2) = best_cut;
@@ -60,8 +63,10 @@ function test_maxcut(varargin)
     record(4) = time;
     record(5) = finaltolgradnorm;
     
-    if ~exist(['~/SDPLR.jl/output/MaxCut/',graphname, '/manopt', ],'dir'), mkdir(['~/SDPLR.jl/output/MaxCut/',graphname, '/manopt']); end
-    save(['~/SDPLR.jl/output/MaxCut/', graphname, '/manopt/', solver, '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
+    if ~exist(['~/SDPLR.jl/output/MaxCut/FixedRank/',graphname, '/manopt', ],'dir') 
+        mkdir(['~/SDPLR.jl/output/MaxCut/FixedRank/',graphname, '/manopt']);
+    end
+    save(['~/SDPLR.jl/output/MaxCut/FixedRank/', graphname, '/manopt/', solver, '-R-', num2str(R), '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
 end
 
 
@@ -85,8 +90,8 @@ end
 
 
 % Solve with Manopt
-function [Y, iter] = local_maxcut_manopt(A, Y0, tolgradnorm)    
-    [Y, ~, info] = maxcut_manopt(A, [], Y0, tolgradnorm);
+function [Y, iter] = local_maxcut_manopt(A, R, Y0, tolgradnorm)    
+    [Y, ~, info] = maxcut_manopt(A, R, Y0, tolgradnorm);
     iter = info(end).iter;
 end
 
@@ -97,13 +102,14 @@ function [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm)
     time = toc(t);
 end
 
-function  [Y, time, totaliter, finaltolgradnorm] = local_maxcut_manopt_exp_decay(A, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
+function  [Y, time, totaliter, finaltolgradnorm] = local_maxcut_manopt_exp_decay(A, R, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
+    finaltolgradnorm = tolgradnorm0;
     tolgradnorm = tolgradnorm0;
     Y0 = [];
     t = tic;
     totaliter = 0;
     while true
-        [Y, iter] = local_maxcut_manopt(A, Y0, tolgradnorm);
+        [Y, iter] = local_maxcut_manopt(A, R, Y0, tolgradnorm);
         totaliter = totaliter + iter;
         L = spdiags(sum(A, 2), 0, size(A, 1), size(A, 1)) - A;
         [approx_min_eigval, obj, reldualgap] = postprocessing(L, A, Y);
@@ -121,6 +127,7 @@ end
 
 % Solve with Manopt incremental
 function [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_incremental_exp_decay(A, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
+    finaltolgradnorm = tolgradnorm0;
     tolgradnorm = tolgradnorm0;
     while true
         [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm);
