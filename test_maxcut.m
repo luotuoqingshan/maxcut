@@ -6,9 +6,7 @@ function test_maxcut(varargin)
     addOptional(p, 'graph', 'G1', @ischar);
     addOptional(p, 'solver', 'manopt', @ischar);
     addOptional(p, 'R', 0, @isnumeric);
-    % Store the results in "record": a 3-way array
-    % where the idendxing goes:
-    %   graph id ; performance metric ; algorithm
+
     parse(p, varargin{:});
     seed = p.Results.seed; 
     tol = p.Results.tol;
@@ -18,11 +16,13 @@ function test_maxcut(varargin)
 
     rng(seed,'twister');
 
-    data = load(['~/datasets/graphs/MaxCut/', graphname, '.mat']); %#ok<NASGU> 
+    %% Modify these paths before running
+    data = load(['data/', graphname, '.mat']);  
 
     A = data.A;
     
     %A = abs(A); % Make sure the matrix is non-negative
+    % we have already done this step in preprocessing
     n = size(A, 1);
 
     fprintf('Graph id: %s,\tn: %5d,\tm: %10d\n', graphname, n, nnz(A)/2);
@@ -57,16 +57,17 @@ function test_maxcut(varargin)
     fprintf('\tSolver: %s\t R: %8g \tApprox Min Eigval:%8g \t time: %8g, obj: %8g\t cut: %8g\t relative duality gap: %8g\n', ...
             solver_name, R, approx_min_eigval, time, obj, best_cut, rel_duality_gap);
 
-    record(1) = sum(sum((L*Y).*Y))/4; % 
-    record(2) = best_cut;
-    record(3) = rel_duality_gap;
-    record(4) = time;
-    record(5) = finaltolgradnorm;
+    record(1) = sum(sum((L*Y).*Y))/4; %objective value 
+    record(2) = best_cut;             %best cut value
+    record(3) = rel_duality_gap;      %relative suboptimality
+    record(4) = time;                 %running time
+    record(5) = finaltolgradnorm;     %the final tolerance for the gradient norm
     
-    if ~exist(['~/SDPLR.jl/output/MaxCut/FixedRank/',graphname, '/manopt', ],'dir') 
-        mkdir(['~/SDPLR.jl/output/MaxCut/FixedRank/',graphname, '/manopt']);
+    %% Modify these paths before running
+    if ~exist(['output/',graphname, '/manopt', ],'dir') 
+        mkdir(['output/',graphname, '/manopt']);
     end
-    save(['~/SDPLR.jl/output/MaxCut/FixedRank/', graphname, '/manopt/', solver, '-R-', num2str(R), '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
+    save(['output/', graphname, '/manopt/', solver, '-R-', num2str(R), '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
 end
 
 
@@ -96,12 +97,6 @@ function [Y, iter] = local_maxcut_manopt(A, R, Y0, tolgradnorm)
 end
 
 
-function [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm)
-    t = tic;
-    [Y, ~, iter] = maxcut_manopt_incremental(A, tolgradnorm);
-    time = toc(t);
-end
-
 function  [Y, time, totaliter, finaltolgradnorm] = local_maxcut_manopt_exp_decay(A, R, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
     finaltolgradnorm = tolgradnorm0;
     tolgradnorm = tolgradnorm0;
@@ -125,24 +120,34 @@ function  [Y, time, totaliter, finaltolgradnorm] = local_maxcut_manopt_exp_decay
                 approx_min_eigval, time, obj, reldualgap);
 end
 
-% Solve with Manopt incremental
-function [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_incremental_exp_decay(A, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
-    finaltolgradnorm = tolgradnorm0;
-    tolgradnorm = tolgradnorm0;
-    while true
-        [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm);
-        L = spdiags(sum(A, 2), 0, size(A, 1), size(A, 1)) - A;
-        fprintf("Number of iterations: %8g\n", iter);
-        [approx_min_eigval, obj, reldualgap] = postprocessing(L, A, Y);
-        fprintf('\tSolver: Manopt incr\t Approx Min Eigval:%8g \t time: %8g, obj: %8g\t, relative duality gap: %8g\n', ...
-                    approx_min_eigval, time, obj, reldualgap);
-        if reldualgap < tolreldualgap
-            break;
-        end
-        tolgradnorm = tolgradnorm / tolgraphnormdecay;
-        finaltolgradnorm = tolgradnorm;
-    end
-end
+% Solve with Manopt incremental. The following code is not in a good shape
+% so we comment them out. The main problem is that I don't know how to 
+% choose good tolerance for different ranks, the current one keeps them 
+% same but will result in a slower speed than Manopt w/o incremental. 
+
+%function [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm)
+%    t = tic;
+%    [Y, ~, iter] = maxcut_manopt_incremental(A, tolgradnorm);
+%    time = toc(t);
+%end
+%
+%function [Y, time, iter, finaltolgradnorm] = local_maxcut_manopt_incremental_exp_decay(A, tolreldualgap, tolgradnorm0, tolgraphnormdecay)
+%    finaltolgradnorm = tolgradnorm0;
+%    tolgradnorm = tolgradnorm0;
+%    while true
+%        [Y, time, iter] = local_maxcut_manopt_incremental(A, tolgradnorm);
+%        L = spdiags(sum(A, 2), 0, size(A, 1), size(A, 1)) - A;
+%        fprintf("Number of iterations: %8g\n", iter);
+%        [approx_min_eigval, obj, reldualgap] = postprocessing(L, A, Y);
+%        fprintf('\tSolver: Manopt incr\t Approx Min Eigval:%8g \t time: %8g, obj: %8g\t, relative duality gap: %8g\n', ...
+%                    approx_min_eigval, time, obj, reldualgap);
+%        if reldualgap < tolreldualgap
+%            break;
+%        end
+%        tolgradnorm = tolgradnorm / tolgraphnormdecay;
+%        finaltolgradnorm = tolgradnorm;
+%    end
+%end
 
 
 %% Lanczos method storage efficeint implementation
