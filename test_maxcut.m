@@ -17,7 +17,7 @@ function test_maxcut(varargin)
     rng(seed,'twister');
 
     %% Modify these paths before running
-    data = load(['data/', graphname, '.mat']);  
+    data = load(['/p/mnt/data/yufan/datasets/graphs/MaxCut/', graphname, '.mat']);  
 
     A = data.A;
     
@@ -64,10 +64,10 @@ function test_maxcut(varargin)
     record(5) = finaltolgradnorm;     %the final tolerance for the gradient norm
     
     %% Modify these paths before running
-    if ~exist(['output/',graphname, '/manopt', ],'dir') 
-        mkdir(['output/',graphname, '/manopt']);
+    if ~exist(['output/MaxCut/',graphname, '/manopt', ],'dir') 
+        mkdir(['output/MaxCut/',graphname, '/manopt']);
     end
-    save(['output/', graphname, '/manopt/', solver, '-R-', num2str(R), '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
+    save(['output/MaxCut/', graphname, '/manopt/', solver, '-R-', num2str(R), '-seed-', num2str(seed), '-tol-', num2str(tol), '.mat'],'record','-v7.3');
 end
 
 
